@@ -8,8 +8,9 @@
 import { createSystem, Vector3 } from '@iwsdk/core';
 import { Billboard, Confetti, Projectile } from './components.js';
 
-/** World-space Y at which a rising obstacle has passed the player and is recycled. */
-const DESPAWN_Y = 2.8;
+/** World-space Y at which a rising obstacle has passed the player and is recycled.
+ *  Set well above head height so shapes are seen rising all the way up and out. */
+const DESPAWN_Y = 4.0;
 
 /** Moves neon obstacles up through the play space and recycles them past the top. */
 export class ProjectileSystem extends createSystem({

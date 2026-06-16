@@ -8,6 +8,7 @@
  */
 
 import {
+  AdditiveBlending,
   BoxGeometry,
   CanvasTexture,
   DodecahedronGeometry,
@@ -39,22 +40,64 @@ function geometryFor(shape: ShapeName, radius: number) {
   }
 }
 
-/** A neon obstacle: a black fill polyhedron wrapped in a glowing wireframe twin. */
+/**
+ * A neon obstacle that GLOWS: a dark core for a readable silhouette, a
+ * translucent additive inner body, a full-intensity wireframe, and two larger
+ * additive "halo" wireframe shells that fake a blooming neon glow without any
+ * post-processing. Reads vividly as it rises through AR passthrough.
+ */
 export function makeNeonShape(radius: number, color: string): Group {
   const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
   const group = new Group();
 
-  const fill = new Mesh(
-    geometryFor(shape, radius * 0.92),
-    new MeshBasicMaterial({ color: '#000000' }),
+  // Dark core — keeps a crisp silhouette against bright passthrough.
+  group.add(
+    new Mesh(
+      geometryFor(shape, radius * 0.84),
+      new MeshBasicMaterial({ color: '#01010a' }),
+    ),
   );
-  group.add(fill);
 
-  const wire = new Mesh(
-    geometryFor(shape, radius),
-    new MeshBasicMaterial({ color, wireframe: true }),
+  // Inner body glow — translucent neon, added to whatever is behind it.
+  group.add(
+    new Mesh(
+      geometryFor(shape, radius * 0.99),
+      new MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.25,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    ),
   );
-  group.add(wire);
+
+  // Crisp, full-intensity wireframe edges (never tone-mapped down).
+  group.add(
+    new Mesh(
+      geometryFor(shape, radius),
+      new MeshBasicMaterial({ color, wireframe: true, toneMapped: false }),
+    ),
+  );
+
+  // Additive halo shells — larger + fainter — bloom the glow outward.
+  for (const [scale, opacity] of [[1.16, 0.42], [1.4, 0.2]] as const) {
+    group.add(
+      new Mesh(
+        geometryFor(shape, radius * scale),
+        new MeshBasicMaterial({
+          color,
+          wireframe: true,
+          transparent: true,
+          opacity,
+          blending: AdditiveBlending,
+          depthWrite: false,
+          toneMapped: false,
+        }),
+      ),
+    );
+  }
 
   return group;
 }
@@ -106,7 +149,26 @@ export function makeCanvasPanel(
   };
 }
 
-/** Helper to draw a rounded, semi-transparent neon panel with a title + body lines. */
+/** Traces a rounded-rectangle path (no reliance on ctx.roundRect availability). */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+/** Helper to draw a rounded, glowing neon panel with a title + body lines. */
 export function drawPanel(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -130,35 +192,63 @@ export function drawPanel(
     lines = [],
     lineColor = '#ffffff',
     lineSize = 40,
-    bg = 'rgba(2,2,12,0.82)',
+    bg,
     border = '#00ffff',
     align = 'center',
   } = opts;
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-  ctx.lineWidth = 6;
+  ctx.save();
+
+  // Rounded panel body — vertical gradient unless a solid bg is supplied.
+  const pad = 14;
+  roundRectPath(ctx, pad, pad, w - pad * 2, h - pad * 2, 34);
+  if (bg) {
+    ctx.fillStyle = bg;
+  } else {
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, 'rgba(10,14,40,0.92)');
+    grad.addColorStop(1, 'rgba(2,2,12,0.92)');
+    ctx.fillStyle = grad;
+  }
+  ctx.fill();
+
+  // Glowing neon border — a soft wide glow pass, then a crisp inner line.
   ctx.strokeStyle = border;
-  ctx.strokeRect(8, 8, w - 16, h - 16);
+  ctx.shadowColor = border;
+  ctx.shadowBlur = 34;
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  ctx.shadowBlur = 14;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
 
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
-  const cx = align === 'center' ? w / 2 : 48;
+  const cx = align === 'center' ? w / 2 : 56;
 
-  let y = title ? h * 0.22 : h * 0.5 - (lines.length * lineSize * 1.35) / 2;
+  let y = title ? h * 0.24 : h * 0.5 - (lines.length * lineSize * 1.4) / 2;
 
   if (title) {
-    ctx.fillStyle = titleColor;
     ctx.font = `bold ${titleSize}px system-ui, "Segoe UI", Arial, sans-serif`;
+    ctx.fillStyle = titleColor;
+    ctx.shadowColor = titleColor;
+    ctx.shadowBlur = 26;
+    ctx.fillText(title, cx, y); // double-draw deepens the neon glow
     ctx.fillText(title, cx, y);
-    y = h * 0.42;
+    ctx.shadowBlur = 0;
+    y = h * 0.44;
   }
 
-  ctx.fillStyle = lineColor;
   ctx.font = `${lineSize}px system-ui, "Segoe UI", Arial, sans-serif`;
+  ctx.fillStyle = lineColor;
+  ctx.shadowColor = lineColor;
+  ctx.shadowBlur = 10;
   for (const line of lines) {
     ctx.fillText(line, cx, y);
-    y += lineSize * 1.35;
+    y += lineSize * 1.4;
   }
+
+  ctx.restore();
 }
