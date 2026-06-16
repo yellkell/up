@@ -41,7 +41,7 @@ const GRID_TOTAL = 1.5;
 const HALF = GRID_TOTAL / 2; // 0.75
 const KILL_HALF = 0.95; // step past this and you're out
 const HEAD_R = 0.15;
-const OBST_SPAWN_Y = -0.3; // emerges from just under the floor
+const OBST_SPAWN_Y = -5.0; // spawns FAR below the floor so you watch it rise all the way up
 const QUAD_LOCAL = [
   { x: -0.375, z: -0.375 },
   { x: 0.375, z: -0.375 },
@@ -369,20 +369,22 @@ export class GameSystem extends createSystem({
     const remaining = Math.max(0, Math.ceil(w.duration - this.timeInWave));
     this.setHud(`WAVE ${this.waveIndex + 1} / ${WAVES.length}`, `${remaining}s`);
 
-    // Spawn scheduling: idle -> telegraph (floor flash) -> erupt
+    // Spawn scheduling: idle -> light the floor portal AND spawn the shape far
+    // below (so it's already rising up from beneath through that portal) ->
+    // portal fades as the shape keeps climbing all the way up to the player.
     this.spawnTimer += dt;
     if (this.spawnState === 'idle' && this.spawnTimer >= w.interval) {
       this.spawnTimer = 0;
       this.spawnState = 'telegraph';
       this.telegraphTimer = 0;
       this.telegraphTargets = this.pickTargets(w.maxTargets);
+      for (const q of this.telegraphTargets) this.spawnObstacle(q, w.speed);
     }
     if (this.spawnState === 'telegraph') {
       this.telegraphTimer += dt;
       const pulse = 0.5 + 0.5 * Math.sin(this.telegraphTimer * 16);
       this.flashTiles(this.telegraphTargets, pulse);
       if (this.telegraphTimer >= w.telegraph) {
-        for (const q of this.telegraphTargets) this.spawnObstacle(q, w.speed);
         this.clearTiles();
         this.spawnState = 'idle';
         this.telegraphTimer = 0;
