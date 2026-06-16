@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <title>UP DODGE XR</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, "Segoe UI", Arial, sans-serif;
+        background: #04040c;
+      }
+      #enter-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.2rem;
+        text-align: center;
+        color: #dffaff;
+        background: radial-gradient(circle at 50% 35%, #0a1030 0%, #04040c 70%);
+        z-index: 10;
+      }
+      #enter-overlay h1 {
+        margin: 0;
+        font-size: clamp(2.4rem, 8vw, 4.5rem);
+        letter-spacing: 0.12em;
+        color: #00ffff;
+        text-shadow: 0 0 18px #00ffff88, 0 0 4px #00ffff;
+      }
+      #enter-overlay p {
+        margin: 0;
+        max-width: 32rem;
+        line-height: 1.5;
+        color: #9fc6d6;
+        padding: 0 1rem;
+      }
+      #enter-btn {
+        margin-top: 0.6rem;
+        padding: 0.9rem 2.6rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: #04040c;
+        background: #00ffcc;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        box-shadow: 0 0 24px #00ffccaa;
+        transition: transform 0.1s ease, box-shadow 0.2s ease;
+      }
+      #enter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 34px #00ffccdd;
+      }
+      #enter-overlay small {
+        color: #5f7d8c;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <div id="enter-overlay">
+      <h1>UP&nbsp;DODGE&nbsp;XR</h1>
+      <button id="enter-btn">ENTER AR</button>
+      <small>Requires a WebXR AR headset (e.g. Meta Quest). Clear ~2 × 2 m of space.</small>
+    </div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
