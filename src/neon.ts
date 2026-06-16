@@ -11,13 +11,17 @@ import {
   AdditiveBlending,
   BoxGeometry,
   CanvasTexture,
+  CircleGeometry,
+  CylinderGeometry,
   DodecahedronGeometry,
+  DoubleSide,
   Group,
   IcosahedronGeometry,
   Mesh,
   MeshBasicMaterial,
   OctahedronGeometry,
   PlaneGeometry,
+  RingGeometry,
   SRGBColorSpace,
   TetrahedronGeometry,
 } from '@iwsdk/core';
@@ -100,6 +104,71 @@ export function makeNeonShape(radius: number, color: string): Group {
   }
 
   return group;
+}
+
+export interface Telegraph {
+  group: Group;
+  disc: Mesh; // glowing floor pool
+  ring: Mesh; // crisp bright outline
+  beam: Mesh; // vertical warning column
+}
+
+/**
+ * An "eruption telegraph": a glowing floor portal (filled disc + bright ring)
+ * plus a vertical warning beam, marking where a neon shape is about to rise UP
+ * from beneath. Far more dramatic than a flat flashing tile. All parts start at
+ * opacity 0 — the game pulses them up during the warning window.
+ */
+export function makeTelegraph(color: string): Telegraph {
+  const group = new Group();
+
+  const disc = new Mesh(
+    new CircleGeometry(0.32, 44),
+    new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.y = 0.02;
+  group.add(disc);
+
+  const ring = new Mesh(
+    new RingGeometry(0.3, 0.37, 56),
+    new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      side: DoubleSide,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.022;
+  group.add(ring);
+
+  const beam = new Mesh(
+    new CylinderGeometry(0.07, 0.22, 1.7, 24, 1, true),
+    new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+      depthWrite: false,
+      toneMapped: false,
+    }),
+  );
+  beam.position.y = 0.85;
+  group.add(beam);
+
+  return { group, disc, ring, beam };
 }
 
 /** A flat emissive-looking box used for grid lines / borders / telegraph tiles. */

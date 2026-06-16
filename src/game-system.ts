@@ -19,7 +19,6 @@ import {
   Interactable,
   Mesh,
   MeshBasicMaterial,
-  PlaneGeometry,
   Pressed,
   VisibilityState,
   Vector3,
@@ -32,7 +31,9 @@ import {
   makeCanvasPanel,
   makeLineBox,
   makeNeonShape,
+  makeTelegraph,
   NEON_COLORS,
+  Telegraph,
 } from './neon.js';
 
 // ----- Play-space geometry (metres, AR local-floor: y = 0 is the floor) -----
@@ -98,7 +99,7 @@ export class GameSystem extends createSystem({
   private overEntity!: Entity;
   private hudEntity!: Entity;
   private bannerEntity!: Entity;
-  private tiles: Mesh[] = [];
+  private telegraphs: Telegraph[] = [];
   private startPanel!: CanvasPanel;
   private overPanel!: CanvasPanel;
   private hudPanel!: CanvasPanel;
@@ -165,15 +166,12 @@ export class GameSystem extends createSystem({
     place(makeLineBox(0.03, 0.01, kl, red), -k, 0.005, 0);
     place(makeLineBox(0.03, 0.01, kl, red), k, 0.005, 0);
 
-    // Telegraph tiles (one per quadrant, flashed before a shape erupts)
-    this.tiles = QUAD_LOCAL.map((c) => {
-      const t = new Mesh(
-        new PlaneGeometry(0.62, 0.62),
-        new MeshBasicMaterial({ color: red, transparent: true, opacity: 0, side: DoubleSide }),
-      );
-      t.rotation.x = -Math.PI / 2;
-      t.position.set(c.x, 0.02, c.z);
-      g.add(t);
+    // Eruption telegraphs (one per quadrant): a glowing floor portal + warning
+    // beam that pulses where a shape is about to rise UP from beneath you.
+    this.telegraphs = QUAD_LOCAL.map((c) => {
+      const t = makeTelegraph('#ff3a00');
+      t.group.position.set(c.x, 0, c.z);
+      g.add(t.group);
       return t;
     });
 
@@ -381,7 +379,7 @@ export class GameSystem extends createSystem({
     }
     if (this.spawnState === 'telegraph') {
       this.telegraphTimer += dt;
-      const pulse = 0.25 + 0.2 * Math.sin(this.telegraphTimer * 18);
+      const pulse = 0.5 + 0.5 * Math.sin(this.telegraphTimer * 16);
       this.flashTiles(this.telegraphTargets, pulse);
       if (this.telegraphTimer >= w.telegraph) {
         for (const q of this.telegraphTargets) this.spawnObstacle(q, w.speed);
@@ -474,14 +472,21 @@ export class GameSystem extends createSystem({
   // ---------------------------------------------------------------- visuals ----
 
   private flashTiles(targets: number[], pulse: number) {
-    for (let i = 0; i < this.tiles.length; i++) {
-      const mat = this.tiles[i].material as MeshBasicMaterial;
-      mat.opacity = targets.includes(i) ? pulse : 0;
+    for (let i = 0; i < this.telegraphs.length; i++) {
+      const on = targets.includes(i);
+      const t = this.telegraphs[i];
+      (t.disc.material as MeshBasicMaterial).opacity = on ? pulse * 0.5 : 0;
+      (t.ring.material as MeshBasicMaterial).opacity = on ? Math.min(1, pulse) : 0;
+      (t.beam.material as MeshBasicMaterial).opacity = on ? pulse * 0.45 : 0;
     }
   }
 
   private clearTiles() {
-    for (const t of this.tiles) (t.material as MeshBasicMaterial).opacity = 0;
+    for (const t of this.telegraphs) {
+      (t.disc.material as MeshBasicMaterial).opacity = 0;
+      (t.ring.material as MeshBasicMaterial).opacity = 0;
+      (t.beam.material as MeshBasicMaterial).opacity = 0;
+    }
   }
 
   private clearProjectiles() {
@@ -509,21 +514,17 @@ export class GameSystem extends createSystem({
   private drawStart() {
     this.startPanel.redraw((ctx, w, h) =>
       drawPanel(ctx, w, h, {
-        title: 'UP DODGE XR',
+        title: 'ALIGN YOUR PLAYSPACE',
         titleColor: '#00ffff',
-        titleSize: 78,
+        titleSize: 58,
         lines: [
-          'Clear a 2 x 2 m space around you.',
-          'Neon shapes erupt from the floor —',
-          'step out of their lane to dodge!',
-          'Stay inside the red ring.',
+          'Stand inside the ring on your floor,',
+          'with room to step in every direction.',
           '',
-          'Survive 3 waves to win.',
-          '',
-          '▶  Point & press BEGIN',
+          '▶  PRESS TRIGGER TO CONFIRM',
         ],
         lineColor: '#dffaff',
-        lineSize: 38,
+        lineSize: 40,
       }),
     );
   }
